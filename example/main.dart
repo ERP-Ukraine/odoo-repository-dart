@@ -27,18 +27,43 @@ void main() async {
   var currentUser = userRepo.records[0];
   print('Current user: ${currentUser.name}');
 
-  final _ = userRepo.recordStream.listen((user) {
+  final userSub = userRepo.recordStream.listen((user) async {
     if (user[0] != currentUser) {
-      currentUser = user[0];
       print('User changed to ${user[0]}');
+      if (currentUser.isPublic && !user[0].isPublic) {
+        // we are logged in
+        netConn.goOffline();
+
+        print(
+            'In offline mode we still can get record: ${userRepo.records[0]}');
+
+        print('scheduling a rpc call to change user name');
+        await userRepo.execute(recordId: user[0].id, method: 'write',
+            // we need to pass record id as first argument
+            // because write() is not @api.model
+            args: [
+              user[0].id
+            ], kwargs: <String, dynamic>{
+          'vals': <String, dynamic>{'name': 'Invoicy Girl'}
+        });
+        print('going online');
+        netConn.goOnline();
+      }
+      currentUser = user[0];
     }
   })
     ..onError((error) => print('User repo error: $error'));
 
+  ProcessSignal.sigint.watch().listen((signal) async {
+    print('Exiting...');
+    userRepo.logOutUser();
+    await userSub.cancel();
+    exit(0);
+  });
+
   // Authentication will push new users list to userRepo.recordStream
   await userRepo.authenticateUser(login: 'admin', password: 'admin');
-  if (!currentUser.isPublic) {
-    // it will push public user to a stream
-    userRepo.logOutUser();
-  }
+  print('Hit CTRL+c to exit');
+  // we need to wait unit async calls will finish
+  await Future.delayed(Duration(seconds: 100));
 }
