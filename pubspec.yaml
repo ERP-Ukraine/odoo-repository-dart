@@ -1,5 +1,5 @@
 name: odoo_repository
-description:  Dart package of generic Odoo repository.
+description:  Dart package of generic Odoo repository abstraction layer.
 version: 0.1.0
 homepage: https://github.com/ERP-Ukraine/odoo-repository-dart
 repository: https://github.com/ERP-Ukraine/odoo-repository-dart
