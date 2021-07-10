@@ -49,6 +49,12 @@ class OdooRepository<R extends OdooRecord> {
   /// True if local cache contails less records that remote db.
   bool get canLoadMore => _offset < remoteRecordsCount;
 
+  // Duration in ms for throttling RPC calls
+  int throttleDuration = 1000;
+
+  // Tells if throttling is active now
+  bool _isThrottling = false;
+
   /// Not null if call queque is currently processing
   Future<Null>? processingQueue;
 
@@ -204,12 +210,17 @@ class OdooRepository<R extends OdooRecord> {
     return cachedRecords;
   }
 
-  /// Get records from local cache and trigger remote fetch
+  /// Get records from local cache and trigger remote fetch if not throttling
   List<R> get records {
     latestRecords = _cachedRecords;
     logger.d(
         '$modelName: Got ${latestRecords.length.toString()} records from cache.');
-    fetchRecords();
+    if (!_isThrottling) {
+      fetchRecords();
+      _isThrottling = true;
+      Timer(
+          Duration(milliseconds: throttleDuration), () => _isThrottling = false);
+    }
     return latestRecords;
   }
 
