@@ -52,7 +52,7 @@ class User extends Equatable implements OdooRecord {
     );
   }
 
-  // Equatable stull to comrate records
+  // Equatable stuff to compare records
   @override
   List<Object> get props => [id, partnerId, login, name, lang, imageSmall];
 

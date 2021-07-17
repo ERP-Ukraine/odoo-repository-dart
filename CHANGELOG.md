@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.1.3
+
+Improved documentation with examples
+
 ## 0.1.2
 
 Added RPC calls throttling
