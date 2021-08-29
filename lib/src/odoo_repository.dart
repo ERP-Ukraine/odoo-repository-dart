@@ -218,8 +218,8 @@ class OdooRepository<R extends OdooRecord> {
     if (!_isThrottling) {
       fetchRecords();
       _isThrottling = true;
-      Timer(
-          Duration(milliseconds: throttleDuration), () => _isThrottling = false);
+      Timer(Duration(milliseconds: throttleDuration),
+          () => _isThrottling = false);
     }
     return latestRecords;
   }
