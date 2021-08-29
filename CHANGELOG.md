@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.1.4
+
+Upgrade equatable dependency to 2.0.3
+
 ## 0.1.3
 
 Improved documentation with examples
