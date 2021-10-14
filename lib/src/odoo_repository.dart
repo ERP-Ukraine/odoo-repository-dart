@@ -46,7 +46,7 @@ class OdooRepository<R extends OdooRecord> {
   /// Allows to change default order when fetching data.
   String order = '';
 
-  /// True if local cache contails less records that remote db.
+  /// True if local cache contains less records that remote db.
   bool get canLoadMore => _offset < remoteRecordsCount;
 
   // Duration in ms for throttling RPC calls
@@ -254,10 +254,21 @@ class OdooRepository<R extends OdooRecord> {
     return OdooRecord(0) as R;
   }
 
+  /// Sends given list of records to a stream if there are listeners
+  void _recordStreamAdd(List<R> latestRecords) {
+    if (recordStreamActive && isAuthenticated) {
+      recordStreamController.add(latestRecords);
+    }
+  }
+
   /// Fetch records from remote and push to the stream
   Future<void> fetchRecords() async {
     /// reset offset as if we are loading first page.
     /// To fetch more than that use [cacheMoreRecords].
+    if (callsToProcess.isNotEmpty) {
+      logger.d('skipping fetchRecords as call queue is not processed yet');
+      return;
+    }
     offset = 0;
     try {
       final res = await searchRead();
@@ -275,9 +286,7 @@ class OdooRepository<R extends OdooRecord> {
           await cache.delete(recordIdsCacheKey);
           await cache.put(recordIdsCacheKey, freshRecordsIDs);
           latestRecords = freshRecords;
-          if (recordStreamActive && isAuthenticated) {
-            recordStreamController.add(latestRecords);
-          }
+          _recordStreamAdd(latestRecords);
         }
       }
     } on Exception {
@@ -301,9 +310,7 @@ class OdooRepository<R extends OdooRecord> {
       await cache.delete(recordIdsCacheKey);
       await cache.put(recordIdsCacheKey, cachedRecords.map((e) => e.id));
       latestRecords = cachedRecords;
-      if (recordStreamActive && isAuthenticated) {
-        recordStreamController.add(latestRecords);
-      }
+      _recordStreamAdd(latestRecords);
     } on Exception {
       logger.d('$modelName: frontend_get_requests: OdooException}');
     }
@@ -314,9 +321,33 @@ class OdooRepository<R extends OdooRecord> {
   bool get isAuthenticated =>
       orpc.sessionId != null && orpc.sessionId?.id != '';
 
-  /// To be implemented in concrete class
-  R create(Map<String, dynamic> values) {
-    return createRecordFromJson({'id': 0});
+  /// Returns next available id
+  int get nextId {
+    if (latestRecords.isEmpty) {
+      return 1;
+    }
+    final lastRecord = latestRecords
+        .reduce((value, element) => value.id > element.id ? value : element);
+    return lastRecord.id + 1;
+  }
+
+  /// Create new record in cache and schedule rpc call
+  void create(R record) {
+    final nextFreeId = nextId;
+    // ensure we are creating record with highest id
+    if (record.id != nextFreeId) {
+      var values = record.toJson();
+      values['id'] = nextFreeId;
+      record = createRecordFromJson(values);
+    }
+    logger.d('$modelName: create id=${record.id}');
+    latestRecords.insert(0, record);
+    execute(
+        recordId: record.id,
+        method: 'create',
+        args: [],
+        kwargs: record.toJson());
+    _recordStreamAdd(latestRecords);
   }
 
   /// To be implemented in concrete class
@@ -324,22 +355,41 @@ class OdooRepository<R extends OdooRecord> {
     return [];
   }
 
-  /// To be implemented in concrete class
-  bool write(R record, Map<String, dynamic> values) {
-    return false;
+  /// Update record in cache and schedule rpc call
+  void write(R newRecord) {
+    var values = <String, dynamic>{};
+    final oldRecord = latestRecords.firstWhere(
+        (element) => element.id == newRecord.id,
+        orElse: () => newRecord);
+    // Determine what fields were changed
+    final oldRecordJson = oldRecord.toJson();
+    final newRecordJson = newRecord.toJson();
+    for (var k in newRecordJson.keys) {
+      if (oldRecordJson[k] != newRecordJson[k]) {
+        values[k] = newRecordJson[k];
+      }
+    }
+    if (values.isEmpty) {
+      return;
+    }
+    // write-through cache
+    final recordIndex =
+        latestRecords.indexWhere((element) => element.id == newRecord.id);
+    if (recordIndex < 0) {
+      latestRecords.insert(0, newRecord);
+    } else {
+      latestRecords[recordIndex] = newRecord;
+    }
+    logger.d('$modelName: write id=${newRecord.id}, values = `$values`');
+    execute(recordId: newRecord.id, method: 'write', args: [], kwargs: values);
+    _recordStreamAdd(latestRecords);
   }
 
   /// Unlink record on remote db.
-  bool unlink(R record) {
+  void unlink(R record) {
     logger.d('$modelName: unlink id=${record.id}');
-    execute(recordId: record.id, method: 'unlink')
-        .then((res) => cacheDelete(record))
-        .catchError((e) {
-      if (e is OdooException) {
-        return;
-      }
-    });
-    return true;
+    execute(recordId: record.id, method: 'unlink');
+    cacheDelete(record);
   }
 
   /// Helps to builds rpc call instance.
