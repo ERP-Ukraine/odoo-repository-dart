@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.3.1
+
+Call create() and write() with toVals()
+
 ## 0.3.0
 
 Pass OdooEnvironment to OdooRepository as cyclic reference

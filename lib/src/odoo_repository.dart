@@ -343,7 +343,7 @@ class OdooRepository<R extends OdooRecord> {
         recordId: record.id,
         method: 'create',
         args: [],
-        kwargs: record.toJson());
+        kwargs: record.toVals());
     _recordStreamAdd(latestRecords);
   }
 
@@ -361,8 +361,8 @@ class OdooRepository<R extends OdooRecord> {
         (element) => element.id == newRecord.id,
         orElse: () => newRecord);
     // Determine what fields were changed
-    final oldRecordJson = oldRecord.toJson();
-    final newRecordJson = newRecord.toJson();
+    final oldRecordJson = oldRecord.toVals();
+    final newRecordJson = newRecord.toVals();
     for (var k in newRecordJson.keys) {
       if (oldRecordJson[k] != newRecordJson[k]) {
         values[k] = newRecordJson[k];
