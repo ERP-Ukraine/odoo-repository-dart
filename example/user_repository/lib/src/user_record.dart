@@ -21,6 +21,20 @@ class User extends Equatable implements OdooRecord {
   final String lang;
   final String imageSmall;
 
+  /// Converts [User] to JSON compatible with create or write
+  /// For larger models better use code generation.
+  @override
+  Map<String, dynamic> toVals() {
+    return {
+      'id': id,
+      'partner_id': partnerId,
+      'login': login,
+      'name': name,
+      'lang': lang,
+      'image_small': imageSmall
+    };
+  }
+
   /// Converts [User] to JSON
   /// For larger models better use code generation.
   @override

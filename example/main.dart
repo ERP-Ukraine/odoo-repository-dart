@@ -24,11 +24,11 @@ void main() async {
   // Network state tracker is needed by Repository
   final netConn = NetworkConnectivity();
 
-  final odooEnv = OdooEnvironment(odooClient, odooDbName, cache, netConn);
+  final env = OdooEnvironment(odooClient, odooDbName, cache, netConn);
   // Alternative way to get instanciated user repo
   // final userRepo = odooEnv.add((db) => UserRepository(db));
-  odooEnv.add((db) => UserRepository(db));
-  final userRepo = odooEnv.env<UserRepository>();
+  env.add(UserRepository(env));
+  final userRepo = env.of<UserRepository>();
   var currentUser = userRepo.records[0];
   print('Current user: ${currentUser.name}');
 

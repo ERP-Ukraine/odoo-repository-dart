@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.3.0
+
+Pass OdooEnvironment to OdooRepository as cyclic reference
+
 ## 0.2.0
 
 Added OdooEnvironment to coordinate call queue of all repositories

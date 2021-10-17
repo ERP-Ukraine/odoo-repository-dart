@@ -17,18 +17,18 @@ class UserRepository extends OdooRepository<User> {
   int remoteRecordsCount = 1;
 
   /// Instantiates [UserRepository] with given [OdooClient].
-  UserRepository(OdooDatabase database) : super(database) {
+  UserRepository(OdooEnvironment odoo) : super(odoo) {
     // track if session is destroyed.
     // Any ORM call may fail due to expired session.
     // We need to kill user in that case.
-    db.orpc.sessionStream.listen(sessionChanged);
+    env.orpc.sessionStream.listen(sessionChanged);
   }
 
   Future<void> authenticateUser(
       {required String login, required String password}) async {
     try {
       logger.d('Authenticating user `$login`');
-      await db.orpc.authenticate(db.dbName, login, password);
+      await env.orpc.authenticate(env.dbName, login, password);
       unawaited(fetchRecords());
     } on OdooException {
       if (recordStreamActive) {
@@ -44,7 +44,7 @@ class UserRepository extends OdooRepository<User> {
   void logOutUser() {
     logger.d('Logging out user `${latestRecords[0].login}`');
     clearCaches();
-    db.orpc.destroySession().then((value) => clearRecords());
+    env.orpc.destroySession().then((value) => clearRecords());
   }
 
   void sessionChanged(OdooSession sessionId) {
@@ -90,8 +90,8 @@ class UserRepository extends OdooRepository<User> {
       return [publicUserJson];
     }
     try {
-      final userId = db.orpc.sessionId!.userId;
-      var res = await db.orpc.callKw({
+      final userId = env.orpc.sessionId!.userId;
+      var res = await env.orpc.callKw({
         'model': modelName,
         'method': 'search_read',
         'args': [],
@@ -106,12 +106,12 @@ class UserRepository extends OdooRepository<User> {
       });
       var avatarUrl = '';
       if (res.length == 1) {
-        final image_field = db.orpc.sessionId!.serverVersion >= 13
+        final image_field = env.orpc.sessionId!.serverVersion >= 13
             ? 'image_128'
             : 'image_small';
         var unique = res[0]['__last_update'] as String;
         unique = unique.replaceAll(RegExp(r'[^0-9]'), '');
-        avatarUrl = db.orpc.baseURL +
+        avatarUrl = env.orpc.baseURL +
             '/web/image?model=$modelName&field=$image_field&id=$userId&unique=$unique';
         res[0]['image_small'] = avatarUrl;
       } else {

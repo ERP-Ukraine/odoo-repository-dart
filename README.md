@@ -93,7 +93,7 @@ At first we need to Instantiate `OdooEnvironment` that holds list of Odoo Reposi
 and executes call queue in same order as repositories were added to Environment.
 
 `OdooEnvironment` requires `OdooClient`, database name, cache and network connectivity.
-It will pass those parametes in form of `OdooDatabase` instance to all repositores it creates via `add()` call.
+When it is instantianted new repository instances can be added via `add()` call.
 
 ```dart
 // Init cache storage implemented with Hive
@@ -106,15 +106,16 @@ final odooClient = OdooClient(odooServerURL, session);
 final netConn = NetworkConnectivity();
 const odooDbName = 'odoo';
 
-final odooEnv = OdooEnvironment(odooClient, odooDbName, cache, netConn);
+final env = OdooEnvironment(odooClient, odooDbName, cache, netConn);
 
-final partnerRepo = odooEnv.add((db) => PartnerRepository(db));
-odooEnv.add((db) => UserRepository(db));
-odooEnv.add((db) => SaleOrderRepository(db));
-odooEnv.add((db) => SaleOrderLineRepository(db));
+final partnerRepo = env.add(PartnerRepository(env));
+env.add(UserRepository(env));
+env.add(SaleOrderRepository(env));
+env.add(SaleOrderLineRepository(env));
 // and so on
 // later we can access instance of PartnerRepository via
-final saleOrderRepo = odooEnv.env<SaleOrderRepository>();
+final saleOrderRepo = env.of<SaleOrderRepository>();
+final saleOrderLineRepo = saleOrderRepo.env.of<SaleOrderLineRepository>();
 ```
 
 Here is an example how `NetConnState` can be implemented with [connectivity](https://pub.dev/packages/connectivity) package.

@@ -3,7 +3,6 @@ import 'package:pedantic/pedantic.dart';
 
 import 'kv_store.dart';
 import 'network_connection_state.dart';
-import 'odoo_database.dart';
 import 'odoo_repository.dart';
 import 'odoo_rpc_call.dart';
 
@@ -20,38 +19,32 @@ class OdooEnvironment {
   /// Tracks current network state: online or offline
   late NetConnState netConnectivity;
 
-  /// Holds connection info
-  late final OdooDatabase _database;
-
   /// Holds a list of Odoo Repositories
   final _registry = <OdooRepository>[];
 
   OdooEnvironment(this.orpc, this.dbName, this.cache, this.netConnectivity) {
     orpc.loginStream.listen(loginStateChanged);
     netConnectivity.onNetConnChanged.listen(onNetworkConnChanged);
-    _database = OdooDatabase(orpc, dbName, cache, queueRequest);
     // check if our session is valid for database
     if (orpc.sessionId != null && orpc.sessionId!.dbName != dbName) {
       orpc.destroySession();
     }
   }
 
-  OdooDatabase get database => _database;
-
   bool get isAuthenticated =>
       orpc.sessionId != null && orpc.sessionId?.id != '';
 
-  /// Creates instance of Odoo Repository with given constructor and adds instance to registry
-  T add<T extends OdooRepository>(T Function(OdooDatabase db) repoCreator) {
-    var repo = repoCreator(database);
+  /// Adds instance of Odoo Repository to registry
+  T add<T extends OdooRepository>(T repo) {
     if (!_registry.contains(repo)) {
       _registry.add(repo);
     }
     return repo;
   }
 
-  /// Access Odoo Repository of given type like [env<UserRepository>()]
-  T env<T extends OdooRepository>() {
+  /// Returns Odoo Repository of given type.
+  /// Example:  [of<UserRepository>()]
+  T of<T extends OdooRepository>() {
     for (var repo in _registry) {
       if (repo is T) {
         return repo;
