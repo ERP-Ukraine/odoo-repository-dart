@@ -9,8 +9,6 @@ import 'user_record.dart';
 /// User repository interacts with local cache and remote Odoo instance
 /// to provide access to User's data.
 class UserRepository extends OdooRepository<User> {
-  String dbName;
-
   @override
   final String modelName = 'res.users';
 
@@ -19,21 +17,18 @@ class UserRepository extends OdooRepository<User> {
   int remoteRecordsCount = 1;
 
   /// Instantiates [UserRepository] with given [OdooClient].
-  UserRepository(
-      OdooClient orpc, String dbName, OdooKv cache, NetConnState netConn)
-      : dbName = dbName,
-        super(orpc, cache, netConn) {
+  UserRepository(OdooDatabase database) : super(database) {
     // track if session is destroyed.
     // Any ORM call may fail due to expired session.
     // We need to kill user in that case.
-    orpc.sessionStream.listen(sessionChanged);
+    db.orpc.sessionStream.listen(sessionChanged);
   }
 
   Future<void> authenticateUser(
       {required String login, required String password}) async {
     try {
       logger.d('Authenticating user `$login`');
-      await orpc.authenticate(dbName, login, password);
+      await db.orpc.authenticate(db.dbName, login, password);
       unawaited(fetchRecords());
     } on OdooException {
       if (recordStreamActive) {
@@ -49,7 +44,7 @@ class UserRepository extends OdooRepository<User> {
   void logOutUser() {
     logger.d('Logging out user `${latestRecords[0].login}`');
     clearCaches();
-    orpc.destroySession().then((value) => clearRecords());
+    db.orpc.destroySession().then((value) => clearRecords());
   }
 
   void sessionChanged(OdooSession sessionId) {
@@ -95,8 +90,8 @@ class UserRepository extends OdooRepository<User> {
       return [publicUserJson];
     }
     try {
-      final userId = orpc.sessionId!.userId;
-      var res = await orpc.callKw({
+      final userId = db.orpc.sessionId!.userId;
+      var res = await db.orpc.callKw({
         'model': modelName,
         'method': 'search_read',
         'args': [],
@@ -111,11 +106,12 @@ class UserRepository extends OdooRepository<User> {
       });
       var avatarUrl = '';
       if (res.length == 1) {
-        final image_field =
-            orpc.sessionId!.serverVersion >= 13 ? 'image_128' : 'image_small';
+        final image_field = db.orpc.sessionId!.serverVersion >= 13
+            ? 'image_128'
+            : 'image_small';
         var unique = res[0]['__last_update'] as String;
         unique = unique.replaceAll(RegExp(r'[^0-9]'), '');
-        avatarUrl = orpc.baseURL +
+        avatarUrl = db.orpc.baseURL +
             '/web/image?model=$modelName&field=$image_field&id=$userId&unique=$unique';
         res[0]['image_small'] = avatarUrl;
       } else {

@@ -1,11 +1,12 @@
 import 'dart:io';
 
+import 'package:odoo_repository/odoo_repository.dart' show OdooEnvironment;
 import 'package:odoo_rpc/odoo_rpc.dart';
-
 import 'package:user_repository/user_repository.dart';
+
 import 'config.dart';
-import 'odoo_kv_hive_impl.dart';
 import 'net_conn_impl.dart';
+import 'odoo_kv_hive_impl.dart';
 
 void main() async {
   // Init cache storage implemented with Hive
@@ -23,7 +24,11 @@ void main() async {
   // Network state tracker is needed by Repository
   final netConn = NetworkConnectivity();
 
-  final userRepo = UserRepository(odooClient, odooDbName, cache, netConn);
+  final odooEnv = OdooEnvironment(odooClient, odooDbName, cache, netConn);
+  // Alternative way to get instanciated user repo
+  // final userRepo = odooEnv.add((db) => UserRepository(db));
+  odooEnv.add((db) => UserRepository(db));
+  final userRepo = odooEnv.env<UserRepository>();
   var currentUser = userRepo.records[0];
   print('Current user: ${currentUser.name}');
 

@@ -16,5 +16,5 @@ class OdooRecord {
   /// List of fields to fetch
   static List<String> get oFields => ['id', '__last_update'];
 
-  OdooRecord(this.id);
+  const OdooRecord(this.id);
 }

@@ -3,13 +3,12 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:logger/logger.dart';
-import 'package:odoo_repository/odoo_repository.dart';
 import 'package:odoo_rpc/odoo_rpc.dart';
 import 'package:pedantic/pedantic.dart';
 
-import 'kv_store.dart';
-import 'network_connection_state.dart';
+import 'odoo_database.dart';
 import 'odoo_record.dart';
+import 'odoo_rpc_call.dart';
 
 /// Base class of Odoo repository logic with RPC calls and local caching.
 /// It sends stream events on record changes.
@@ -58,10 +57,8 @@ class OdooRepository<R extends OdooRecord> {
   /// Not null if call queque is currently processing
   Future<Null>? processingQueue;
 
-  /// Odoo RPC client
-  late OdooClient orpc;
-  // Key-value cache client
-  late OdooKv cache;
+  /// Holds connection info
+  late final OdooDatabase db;
 
   /// Tells whether we should send record change events to a stream.
   /// Activates when there is at least one listener.
@@ -77,18 +74,13 @@ class OdooRepository<R extends OdooRecord> {
   /// Must be overridden to set real model name.
   late String modelName;
 
-  /// Tracks current network state: online or offline
-  late NetConnState netConnectivity;
-
   /// Only debug messages
   late Logger logger;
 
-  /// Instantiates [OdooRepository] with given [OdooClient].
-  OdooRepository(this.orpc, this.cache, this.netConnectivity)
-      : logger = Logger() {
+  /// Instantiates [OdooRepository] with given [OdooDatabase] info.
+  OdooRepository(this.db) : logger = Logger() {
     recordStreamController = StreamController<List<R>>.broadcast(
         onListen: startSteam, onCancel: stopStream);
-    netConnectivity.onNetConnChanged.listen(onNetworkConnChanged);
   }
 
   /// Enables stream of records fetched
@@ -103,7 +95,7 @@ class OdooRepository<R extends OdooRecord> {
       throw OdooException('Not Authenticated');
     }
     return sha1
-        .convert(utf8.encode('${orpc.baseURL}${orpc.sessionId!.dbName}'))
+        .convert(utf8.encode('${db.orpc.baseURL}${db.orpc.sessionId!.dbName}'))
         .toString();
   }
 
@@ -113,7 +105,7 @@ class OdooRepository<R extends OdooRecord> {
     if (!isAuthenticated) {
       throw OdooException('Not Authenticated');
     }
-    return '$serverUuid:${orpc.sessionId!.userId}:$modelName';
+    return '$serverUuid:${db.orpc.sessionId!.userId}:$modelName';
   }
 
   /// Returns cache key prefix to store call with unique key name
@@ -147,12 +139,12 @@ class OdooRepository<R extends OdooRecord> {
   }
 
   /// Deletes all cached records
-  void clearCaches() {
+  Future<void> clearCaches() async {
     try {
       final keyPrefix = recordCacheKeyPrefix;
-      for (String key in cache.keys) {
+      for (String key in db.cache.keys) {
         if (key.contains(keyPrefix)) {
-          cache.delete(key);
+          await db.cache.delete(key);
         }
       }
     } catch (e) {
@@ -163,18 +155,18 @@ class OdooRepository<R extends OdooRecord> {
   }
 
   /// Stores [record] in cache
-  void cachePut(R record) {
+  Future<void> cachePut(R record) async {
     if (isAuthenticated) {
       final key = getrecordCacheKey(record.id);
-      cache.put(key, record);
+      await db.cache.put(key, record);
     }
   }
 
   /// Deletes [record] from cache
-  void cacheDelete(R? record) {
+  Future<void> cacheDelete(R? record) async {
     if (isAuthenticated && record != null) {
       final key = getrecordCacheKey(record.id);
-      cache.delete(key);
+      await db.cache.delete(key);
     }
   }
 
@@ -183,9 +175,9 @@ class OdooRepository<R extends OdooRecord> {
     if (isAuthenticated) {
       final key = getrecordCacheKey(id);
       try {
-        return cache.get(key, defaultValue: null);
+        return db.cache.get(key, defaultValue: null);
       } on Exception {
-        cache.delete(key);
+        db.cache.delete(key);
         return null;
       }
     }
@@ -198,7 +190,7 @@ class OdooRepository<R extends OdooRecord> {
       throw OdooException('You must be authenticted to access $modelName');
     }
     // take list of cached ids and fetch corresponding records
-    var ids = cache.get(recordIdsCacheKey, defaultValue: []);
+    var ids = db.cache.get(recordIdsCacheKey, defaultValue: []);
     var recordIDs = List<int>.from(ids);
     var cachedRecords = <R>[];
     for (var recordID in recordIDs) {
@@ -226,9 +218,11 @@ class OdooRepository<R extends OdooRecord> {
 
   /// Get records from remote.
   /// Must set [remoteRecordsCount]
+  /// Read operation is issued without call queue as it is idempotent.
+  /// Many repositories can call own searchRead concurrently.
   Future<List<dynamic>> searchRead() async {
     try {
-      final Map<String, dynamic> response = await orpc.callKw({
+      final Map<String, dynamic> response = await db.orpc.callKw({
         'model': modelName,
         'method': 'web_search_read',
         'args': [],
@@ -275,16 +269,16 @@ class OdooRepository<R extends OdooRecord> {
       if (res.isNotEmpty) {
         var freshRecordsIDs = <int>[];
         var freshRecords = <R>[];
-        clearCaches();
+        await clearCaches();
         for (Map<String, dynamic> item in res) {
           var record = createRecordFromJson(item);
           freshRecordsIDs.add(record.id);
           freshRecords.add(record);
-          cachePut(record);
+          await cachePut(record);
         }
         if (freshRecordsIDs.isNotEmpty) {
-          await cache.delete(recordIdsCacheKey);
-          await cache.put(recordIdsCacheKey, freshRecordsIDs);
+          await db.cache.delete(recordIdsCacheKey);
+          await db.cache.put(recordIdsCacheKey, freshRecordsIDs);
           latestRecords = freshRecords;
           _recordStreamAdd(latestRecords);
         }
@@ -305,10 +299,10 @@ class OdooRepository<R extends OdooRecord> {
       for (Map<String, dynamic> item in res) {
         var record = createRecordFromJson(item);
         cachedRecords.add(record);
-        cachePut(record);
+        await cachePut(record);
       }
-      await cache.delete(recordIdsCacheKey);
-      await cache.put(recordIdsCacheKey, cachedRecords.map((e) => e.id));
+      await db.cache.delete(recordIdsCacheKey);
+      await db.cache.put(recordIdsCacheKey, cachedRecords.map((e) => e.id));
       latestRecords = cachedRecords;
       _recordStreamAdd(latestRecords);
     } on Exception {
@@ -319,7 +313,7 @@ class OdooRepository<R extends OdooRecord> {
   // Public methods
 
   bool get isAuthenticated =>
-      orpc.sessionId != null && orpc.sessionId?.id != '';
+      db.orpc.sessionId != null && db.orpc.sessionId?.id != '';
 
   /// Returns next available id
   int get nextId {
@@ -332,7 +326,9 @@ class OdooRepository<R extends OdooRecord> {
   }
 
   /// Create new record in cache and schedule rpc call
-  void create(R record) {
+  /// Must use call queue via execute() method to issue calls
+  /// sequentially comparing to other repositories(models)
+  Future<void> create(R record) async {
     final nextFreeId = nextId;
     // ensure we are creating record with highest id
     if (record.id != nextFreeId) {
@@ -342,7 +338,7 @@ class OdooRepository<R extends OdooRecord> {
     }
     logger.d('$modelName: create id=${record.id}');
     latestRecords.insert(0, record);
-    execute(
+    await execute(
         recordId: record.id,
         method: 'create',
         args: [],
@@ -356,7 +352,9 @@ class OdooRepository<R extends OdooRecord> {
   }
 
   /// Update record in cache and schedule rpc call
-  void write(R newRecord) {
+  /// /// Must use call queue via execute() method to issue calls
+  /// sequentially comparing to other repositories(models)
+  Future<void> write(R newRecord) async {
     var values = <String, dynamic>{};
     final oldRecord = latestRecords.firstWhere(
         (element) => element.id == newRecord.id,
@@ -381,24 +379,27 @@ class OdooRepository<R extends OdooRecord> {
       latestRecords[recordIndex] = newRecord;
     }
     logger.d('$modelName: write id=${newRecord.id}, values = `$values`');
-    execute(recordId: newRecord.id, method: 'write', args: [], kwargs: values);
+    await execute(
+        recordId: newRecord.id, method: 'write', args: [], kwargs: values);
     _recordStreamAdd(latestRecords);
   }
 
-  /// Unlink record on remote db.
-  void unlink(R record) {
+  /// Unlink record on remote db
+  /// /// Must use call queue via execute() method to issue calls
+  /// sequentially comparing to other repositories(models)
+  Future<void> unlink(R record) async {
     logger.d('$modelName: unlink id=${record.id}');
-    execute(recordId: record.id, method: 'unlink');
-    cacheDelete(record);
+    await execute(recordId: record.id, method: 'unlink');
+    await cacheDelete(record);
   }
 
   /// Helps to builds rpc call instance.
   OdooRpcCall buildRpcCall(String method, int recordId, List<dynamic> args,
       Map<String, dynamic> kwargs) {
     return OdooRpcCall(
-      orpc.sessionId!.userId,
-      orpc.baseURL,
-      orpc.sessionId!.dbName,
+      db.orpc.sessionId!.userId,
+      db.orpc.baseURL,
+      db.orpc.sessionId!.dbName,
       modelName,
       recordId,
       method,
@@ -407,19 +408,14 @@ class OdooRepository<R extends OdooRecord> {
     );
   }
 
-  /// Puts [rpcCall] to calls queue that will be processed when online
-  void queueRequest(OdooRpcCall rpcCall) {
-    cache.put(rpcCall.cacheKey, rpcCall);
-  }
-
   List<OdooRpcCall> get callsToProcess {
     var calls = <OdooRpcCall>[];
     if (!isAuthenticated) {
       return calls;
     }
-    for (String key in cache.keys) {
+    for (String key in db.cache.keys) {
       if (key.contains(rpcCallKeyPrefix)) {
-        calls.add(cache.get(key));
+        calls.add(db.cache.get(key));
       }
     }
     return calls;
@@ -438,7 +434,7 @@ class OdooRepository<R extends OdooRecord> {
           'args': call.args.isNotEmpty ? [call.args] : [],
           'kwargs': call.kwargs,
         };
-        final res = await orpc.callKw(params);
+        final res = await db.orpc.callKw(params);
         logger.d(res.toString());
         executedCalls.add(call);
       } catch (e) {
@@ -452,13 +448,13 @@ class OdooRepository<R extends OdooRecord> {
     print('processed ${calls.length} calls of `$modelName`');
     for (var call in calls) {
       logger.d('deleting key: `${call.cacheKey}`');
-      await cache.delete(call.cacheKey);
+      await db.cache.delete(call.cacheKey);
     }
     unawaited(fetchRecords());
   }
 
-  /// Processes call queue. Is called when online.
-  void processCallQueue() async {
+  /// Processes call queue. Is called when online by Odoo Env.
+  Future<void> processCallQueue() async {
     if (!isAuthenticated) {
       return;
     }
@@ -480,14 +476,6 @@ class OdooRepository<R extends OdooRecord> {
     }
   }
 
-  /// Called when going online/offline
-  void onNetworkConnChanged(netConnState netState) {
-    if (netState == netConnState.online) {
-      // process call queue
-      processCallQueue();
-    }
-  }
-
   /// Executes [method] on [recordId] of current [modelName].
   /// It places call to queue that is processed either immediately if
   /// network is online or when network state will be changed to online.
@@ -497,9 +485,6 @@ class OdooRepository<R extends OdooRecord> {
       List<dynamic> args = const [],
       Map<String, dynamic> kwargs = const {}}) async {
     final rpcCall = buildRpcCall(method, recordId, args, kwargs);
-    queueRequest(rpcCall);
-    if (await netConnectivity.checkNetConn() == netConnState.online) {
-      processCallQueue();
-    }
+    await db.queueRequest(rpcCall);
   }
 }

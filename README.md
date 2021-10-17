@@ -80,24 +80,7 @@ class PartnerRepository extends OdooRepository<Partner> {
   @override
   final String modelName = 'res.partner';
 
-  PartnerRepository(
-    OdooClient orpc, String dbName, OdooKv cache, NetConnState netConn)
-      : dbName = dbName,
-        super(orpc, cache, netConn) {
-          // In case we want to pre-fetch records right after login
-          // instead of when they are actually needed.
-          orpc.loginStream.listen(loginStateChanged);
-        }
-
-  void loginStateChanged(OdooLoginEvent event) {
-    if (event == OdooLoginEvent.loggedIn) {
-      fetchRecords();
-      processCallQueue();
-    }
-    if (event == OdooLoginEvent.loggedOut) {
-      clearRecords();
-    }
-  }
+  PartnerRepository(OdooDatabase database) : super(database);
 
   @override
   Partner createRecordFromJson(Map<String, dynamic> json) {
@@ -106,8 +89,33 @@ class PartnerRepository extends OdooRepository<Partner> {
 }
 ```
 
-In order to instantiate `PartnerRepository` we also need to pass instance of key-value store
-that implements `OdooKv` interface and instance of network connection monitoring class that implements `NetConnState` interface.
+At first we need to Instantiate `OdooEnvironment` that holds list of Odoo Repositories
+and executes call queue in same order as repositories were added to Environment.
+
+`OdooEnvironment` requires `OdooClient`, database name, cache and network connectivity.
+It will pass those parametes in form of `OdooDatabase` instance to all repositores it creates via `add()` call.
+
+```dart
+// Init cache storage implemented with Hive
+final cache = OdooKvHive();
+await cache.init();
+// Try to recover session from storage
+OdooSession? session = cache.get('cacheSessionKey', defaultValue: null);
+const odooServerURL = 'https://my-odoo-instance.com'
+final odooClient = OdooClient(odooServerURL, session);
+final netConn = NetworkConnectivity();
+const odooDbName = 'odoo';
+
+final odooEnv = OdooEnvironment(odooClient, odooDbName, cache, netConn);
+
+final partnerRepo = odooEnv.add((db) => PartnerRepository(db));
+odooEnv.add((db) => UserRepository(db));
+odooEnv.add((db) => SaleOrderRepository(db));
+odooEnv.add((db) => SaleOrderLineRepository(db));
+// and so on
+// later we can access instance of PartnerRepository via
+final saleOrderRepo = odooEnv.env<SaleOrderRepository>();
+```
 
 Here is an example how `NetConnState` can be implemented with [connectivity](https://pub.dev/packages/connectivity) package.
 

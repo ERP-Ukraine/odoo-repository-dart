@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.2.0
+
+Added OdooEnvironment to coordinate call queue of all repositories
+
 ## 0.1.5
 
 Implemented create and write methods using write-through cache approach.
