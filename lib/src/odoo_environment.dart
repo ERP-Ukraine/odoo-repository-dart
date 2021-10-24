@@ -52,7 +52,13 @@ class OdooEnvironment {
     }
     throw Exception('Repo of type $T not found');
   }
-
+  // TODO: move processCallQueue logic from model to env.
+  // Make it syncrhonous comparing to [create()] and other methods that
+  // are depending on [Record.id]  as it may change after sync.
+  // In any moment of time either sync, that replaces fake id to real id
+  // or [create()], [write()], etc call should be executed.
+  // Add [externalId] field to Record. It must remain unchanged.
+  // It must be fetched with separate call.
   Future<void> _processCallQueue() async {
     for (var repo in _registry) {
       await repo.processCallQueue();
