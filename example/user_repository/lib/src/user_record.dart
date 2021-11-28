@@ -3,6 +3,14 @@ import 'package:odoo_repository/odoo_repository.dart';
 
 /// Pure Dart user model used in Flutter app.
 class User extends Equatable implements OdooRecord {
+  @override
+  final int id;
+  final List<dynamic> partnerId;
+  final String login;
+  final String name;
+  final String lang;
+  final String imageSmall;
+
   const User(this.id, this.partnerId, this.login, this.name, this.lang,
       this.imageSmall);
 
@@ -13,25 +21,32 @@ class User extends Equatable implements OdooRecord {
 
   bool get isPublic => id == 0 ? true : false;
 
-  @override
-  final int id;
-  final List<dynamic> partnerId;
-  final String login;
-  final String name;
-  final String lang;
-  final String imageSmall;
+  User copyWith(
+      {int? id,
+      List<dynamic>? partnerId,
+      String? login,
+      String? name,
+      String? lang,
+      String? imageSmall}) {
+    return User(
+      id ?? this.id,
+      partnerId ?? this.partnerId,
+      login ?? this.login,
+      name ?? this.name,
+      lang ?? this.lang,
+      imageSmall ?? this.imageSmall,
+    );
+  }
 
   /// Converts [User] to JSON compatible with create or write
   /// For larger models better use code generation.
   @override
   Map<String, dynamic> toVals() {
     return {
-      'id': id,
       'partner_id': partnerId,
       'login': login,
       'name': name,
-      'lang': lang,
-      'image_small': imageSmall
+      'lang': lang
     };
   }
 

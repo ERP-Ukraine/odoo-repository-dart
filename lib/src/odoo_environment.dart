@@ -21,6 +21,7 @@ class OdooEnvironment {
 
   /// Holds a list of Odoo Repositories
   final _registry = <OdooRepository>[];
+  final models = <String, OdooRepository>{};
 
   OdooEnvironment(this.orpc, this.dbName, this.cache, this.netConnectivity) {
     orpc.loginStream.listen(loginStateChanged);
@@ -38,6 +39,7 @@ class OdooEnvironment {
   T add<T extends OdooRepository>(T repo) {
     if (!_registry.contains(repo)) {
       _registry.add(repo);
+      models[repo.modelName] = repo;
     }
     return repo;
   }
@@ -52,13 +54,10 @@ class OdooEnvironment {
     }
     throw Exception('Repo of type $T not found');
   }
+
   // TODO: move processCallQueue logic from model to env.
-  // Make it syncrhonous comparing to [create()] and other methods that
-  // are depending on [Record.id]  as it may change after sync.
-  // In any moment of time either sync, that replaces fake id to real id
-  // or [create()], [write()], etc call should be executed.
-  // Add [externalId] field to Record. It must remain unchanged.
-  // It must be fetched with separate call.
+  // It will make calls to be executed in same order as they
+  // were scheduled - not grouped by models.
   Future<void> _processCallQueue() async {
     for (var repo in _registry) {
       await repo.processCallQueue();

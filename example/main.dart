@@ -34,27 +34,26 @@ void main() async {
 
   final userSub = userRepo.recordStream.listen((user) async {
     if (user[0] != currentUser) {
-      print('User changed to ${user[0]}');
-      if (currentUser.isPublic && !user[0].isPublic) {
+      if (currentUser.isPublic &&
+          !user[0].isPublic &&
+          user[0].login == 'admin') {
+        print('User changed to ${user[0]}');
+        currentUser = user[0];
         // we are logged in
         netConn.goOffline();
 
         print(
             'In offline mode we still can get record: ${userRepo.records[0]}');
 
-        print('scheduling a rpc call to change user name');
-        await userRepo.execute(recordId: user[0].id, method: 'write',
-            // we need to pass record id as first argument
-            // because write() is not @api.model
-            args: [
-              user[0].id
-            ], kwargs: <String, dynamic>{
-          'vals': <String, dynamic>{'name': 'Invoicy Girl'}
-        });
+        print('scheduling a rpc call to create new user');
+        final newUser = await userRepo.create(User.publicUser()
+            .copyWith(login: 'newMe', name: 'New Me', lang: 'uk_UA'));
+
+        print('scheduling a rpc call to rename user that was created');
+        await userRepo.write(newUser.copyWith(name: 'New Me!'));
         print('going online');
         netConn.goOnline();
       }
-      currentUser = user[0];
     }
   })
     ..onError((error) => print('User repo error: $error'));

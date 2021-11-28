@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:equatable/equatable.dart';
 
+import 'odoo_id.dart';
+
 /// [OdooRpcCall] represents RPC call to Odoo database
 /// It is used to store calls to persistent storage for later execution.
 class OdooRpcCall extends Equatable {
@@ -54,17 +56,30 @@ class OdooRpcCall extends Equatable {
   }
 
   /// Used to restore a call from persistant call queue.
-  static OdooRpcCall fromJson(Map<String, dynamic> json) {
-    return OdooRpcCall(
-      json['userId'] as int,
-      json['baseURL'] as String,
-      json['dbName'] as String,
-      json['modelName'] as String,
-      json['recordId'] as int,
-      json['method'] as String,
-      json['args'] as List<dynamic>,
-      json['kwargs'] as Map<dynamic, dynamic>,
-      json['callDate'] as DateTime,
-    );
+  static OdooRpcCall fromJson(Map<String, dynamic> jsonMap) {
+    final callJson = json.encode(jsonMap);
+    return json.decode(callJson, reviver: (key, value) {
+      if (value is Map) {
+        if (value.containsKey('userId')) {
+          return OdooRpcCall(
+            value['userId'] as int,
+            value['baseURL'] as String,
+            value['dbName'] as String,
+            value['modelName'] as String,
+            value['recordId'] as int,
+            value['method'] as String,
+            value['args'] as List<dynamic>,
+            value['kwargs'] as Map<dynamic, dynamic>,
+            value['callDate'] as DateTime,
+          );
+        }
+        if (value.containsKey('kind') &&
+            value['kind'] == 'OdooId' &&
+            value.containsKey('id')) {
+          return OdooId(value['id'] as int);
+        }
+      }
+      return value;
+    });
   }
 }

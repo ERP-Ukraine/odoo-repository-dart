@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.4.0
+
+Introduce OdooId class that is used to find what ids needs to be updated during sync.
+
 ## 0.3.1
 
 Call create() and write() with toVals()
