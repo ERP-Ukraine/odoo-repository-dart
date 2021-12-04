@@ -21,6 +21,7 @@ class OdooEnvironment {
 
   /// Holds a list of Odoo Repositories
   final _registry = <OdooRepository>[];
+  final models = <String, OdooRepository>{};
 
   OdooEnvironment(this.orpc, this.dbName, this.cache, this.netConnectivity) {
     orpc.loginStream.listen(loginStateChanged);
@@ -38,6 +39,7 @@ class OdooEnvironment {
   T add<T extends OdooRepository>(T repo) {
     if (!_registry.contains(repo)) {
       _registry.add(repo);
+      models[repo.modelName] = repo;
     }
     return repo;
   }
@@ -53,6 +55,9 @@ class OdooEnvironment {
     throw Exception('Repo of type $T not found');
   }
 
+  // TODO: move processCallQueue logic from model to env.
+  // It will make calls to be executed in same order as they
+  // were scheduled - not grouped by models.
   Future<void> _processCallQueue() async {
     for (var repo in _registry) {
       await repo.processCallQueue();

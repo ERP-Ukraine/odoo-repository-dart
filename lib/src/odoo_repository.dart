@@ -7,6 +7,7 @@ import 'package:odoo_repository/src/odoo_environment.dart';
 import 'package:odoo_rpc/odoo_rpc.dart';
 import 'package:pedantic/pedantic.dart';
 
+import 'odoo_id.dart';
 import 'odoo_record.dart';
 import 'odoo_rpc_call.dart';
 
@@ -76,6 +77,10 @@ class OdooRepository<R extends OdooRecord> {
 
   /// Only debug messages
   late Logger logger;
+
+  /// Used to map ids created in offline to real ids after sync
+  // TODO: store me in cache
+  final newIdMapping = <int, int>{};
 
   /// Instantiates [OdooRepository] with given [OdooDatabase] info.
   OdooRepository(this.env) : logger = Logger() {
@@ -318,18 +323,14 @@ class OdooRepository<R extends OdooRecord> {
 
   /// Returns next available id
   int get nextId {
-    if (latestRecords.isEmpty) {
-      return 1;
-    }
-    final lastRecord = latestRecords
-        .reduce((value, element) => value.id > element.id ? value : element);
-    return lastRecord.id + 1;
+    // FIXME: there might be more than one call per ms
+    return DateTime.now().millisecondsSinceEpoch;
   }
 
   /// Create new record in cache and schedule rpc call
   /// Must use call queue via execute() method to issue calls
   /// sequentially comparing to other repositories(models)
-  Future<void> create(R record) async {
+  Future<R> create(R record) async {
     final nextFreeId = nextId;
     // ensure we are creating record with highest id
     if (record.id != nextFreeId) {
@@ -337,14 +338,17 @@ class OdooRepository<R extends OdooRecord> {
       values['id'] = nextFreeId;
       record = createRecordFromJson(values);
     }
-    logger.d('$modelName: create id=${record.id}');
+    final newId = OdooId(modelName, nextFreeId);
+    logger.d('$modelName: create id=$newId');
+    await cachePut(record);
     latestRecords.insert(0, record);
-    await execute(
-        recordId: record.id,
-        method: 'create',
-        args: [],
-        kwargs: record.toVals());
+    final vals = record.toVals();
+    vals.remove('id');
+    await execute(recordId: record.id, method: 'create', args: [
+      [vals]
+    ], kwargs: {});
     _recordStreamAdd(latestRecords);
+    return record;
   }
 
   /// To be implemented in concrete class
@@ -381,7 +385,10 @@ class OdooRepository<R extends OdooRecord> {
     }
     logger.d('$modelName: write id=${newRecord.id}, values = `$values`');
     await execute(
-        recordId: newRecord.id, method: 'write', args: [], kwargs: values);
+        recordId: newRecord.id,
+        method: 'write',
+        args: [OdooId(modelName, newRecord.id), values],
+        kwargs: {});
     _recordStreamAdd(latestRecords);
   }
 
@@ -392,6 +399,14 @@ class OdooRepository<R extends OdooRecord> {
     logger.d('$modelName: unlink id=${record.id}');
     await execute(recordId: record.id, method: 'unlink');
     await cacheDelete(record);
+  }
+
+  /// Converts [newId] created in offline mode to [id] from odoo database.
+  int newIdToId(int newId) {
+    if (newIdMapping.containsKey(newId)) {
+      return newIdMapping[newId]!;
+    }
+    return newId;
   }
 
   /// Helps to builds rpc call instance.
@@ -432,14 +447,35 @@ class OdooRepository<R extends OdooRecord> {
         final params = {
           'model': call.modelName,
           'method': call.method,
-          'args': call.args.isNotEmpty ? [call.args] : [],
+          'args': call.args.isNotEmpty ? call.args : [],
           'kwargs': call.kwargs,
         };
-        final res = await env.orpc.callKw(params);
+
+        /// Convert [params] to JSON and back to Map
+        /// using dedicated coverter that will replace
+        /// [OdooId] instance with real [id] if it is possible.
+        final rawParams = json.encode(params, toEncodable: (value) {
+          if (value is OdooId) {
+            // replace fake id with real one
+            return env.models[value.odooModel]!.newIdToId(value.odooId);
+          }
+          return value.toJson();
+        });
+
+        final res = await env.orpc.callKw(json.decode(rawParams));
+
+        if (call.method == 'create') {
+          // store mapping between real and fake id
+          newIdMapping[call.recordId] = res[0];
+        }
+
         logger.d(res.toString());
         executedCalls.add(call);
       } catch (e) {
         logger.d(e.toString());
+        // skip executing on first error as next calls may
+        // depend on result of current call.
+        break;
       }
     }
     return executedCalls;

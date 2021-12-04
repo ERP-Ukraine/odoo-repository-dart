@@ -1,9 +1,9 @@
 import 'package:hive/hive.dart';
 import 'package:odoo_repository/odoo_repository.dart';
 import 'package:odoo_rpc/odoo_rpc.dart';
+import 'package:user_repository/user_repository.dart' show User;
 
 import 'config.dart';
-import 'package:user_repository/user_repository.dart' show User;
 
 typedef SessionChangedCallback = void Function(OdooSession sessionId);
 
@@ -18,6 +18,7 @@ class OdooKvHive implements OdooKv {
   Future<void> init() async {
     Hive.registerAdapter(OdooSessionAdapter());
     Hive.registerAdapter(OdooRpcCallAdapter());
+    Hive.registerAdapter(OdooIdAdapter());
     Hive.registerAdapter(UserAdapter());
     Hive.init('/tmp');
     box = await Hive.openBox(hiveBoxName);
@@ -92,10 +93,26 @@ class OdooRpcCallAdapter extends TypeAdapter<OdooRpcCall> {
   }
 }
 
+/// Adapter to store and read OdooId to/from Hive
+class OdooIdAdapter extends TypeAdapter<OdooId> {
+  @override
+  final typeId = 3;
+
+  @override
+  OdooId read(BinaryReader reader) {
+    return OdooId.fromJson(Map<String, dynamic>.from(reader.read()));
+  }
+
+  @override
+  void write(BinaryWriter writer, OdooId obj) {
+    writer.write(obj.toJson());
+  }
+}
+
 /// Adapter to store and read User to/from Hive
 class UserAdapter extends TypeAdapter<User> {
   @override
-  final typeId = 3;
+  final typeId = 4;
 
   @override
   User read(BinaryReader reader) {
