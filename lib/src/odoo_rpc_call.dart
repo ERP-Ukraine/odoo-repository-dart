@@ -73,10 +73,8 @@ class OdooRpcCall extends Equatable {
             value['callDate'] as DateTime,
           );
         }
-        if (value.containsKey('kind') &&
-            value['kind'] == 'OdooId' &&
-            value.containsKey('id')) {
-          return OdooId(value['id'] as int);
+        if (value.containsKey('odooModel') && value.containsKey('odooId')) {
+          return OdooId(value['odooModel'] as String, value['odooId'] as int);
         }
       }
       return value;

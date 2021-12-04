@@ -338,7 +338,7 @@ class OdooRepository<R extends OdooRecord> {
       values['id'] = nextFreeId;
       record = createRecordFromJson(values);
     }
-    final newId = OdooId(nextFreeId);
+    final newId = OdooId(modelName, nextFreeId);
     logger.d('$modelName: create id=$newId');
     await cachePut(record);
     latestRecords.insert(0, record);
@@ -387,7 +387,7 @@ class OdooRepository<R extends OdooRecord> {
     await execute(
         recordId: newRecord.id,
         method: 'write',
-        args: [OdooId(newRecord.id), values],
+        args: [OdooId(modelName, newRecord.id), values],
         kwargs: {});
     _recordStreamAdd(latestRecords);
   }
@@ -457,7 +457,7 @@ class OdooRepository<R extends OdooRecord> {
         final rawParams = json.encode(params, toEncodable: (value) {
           if (value is OdooId) {
             // replace fake id with real one
-            return newIdToId(value.id);
+            return env.models[value.odooModel]!.newIdToId(value.odooId);
           }
           return value.toJson();
         });

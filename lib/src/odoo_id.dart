@@ -3,27 +3,22 @@ import 'package:equatable/equatable.dart';
 /// Represents Odoo database id.
 /// It might be fake if record was created in offline mode.
 class OdooId extends Equatable {
-  final int id;
-  static const String kind = 'OdooId';
+  final String odooModel;
+  final int odooId;
 
-  OdooId(this.id);
+  OdooId(this.odooModel, this.odooId);
 
   /// Converts [OdooId] to JSON
   Map<String, Object> toJson() {
-    return {
-      'id': id,
-      'kind': kind,
-    };
+    return {'odooModel': odooModel, 'odooId': odooId};
   }
 
   /// Creates [OdooId] from JSON
   static OdooId fromJson(Map<String, dynamic> json) {
-    return OdooId(
-      json['id'] as int,
-    );
+    return OdooId(json['odooModel'] as String, json['odooId'] as int);
   }
 
   /// Equatable
   @override
-  List<Object> get props => [id];
+  List<Object> get props => [odooModel, odooId];
 }
