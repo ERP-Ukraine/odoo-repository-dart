@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.4.1
+
+Fix issue with encoding datetime of a RPC call
+
 ## 0.4.0
 
 Introduce OdooId class that is used to find what ids needs to be updated during sync.

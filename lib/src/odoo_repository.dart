@@ -459,7 +459,7 @@ class OdooRepository<R extends OdooRecord> {
             // replace fake id with real one
             return env.models[value.odooModel]!.newIdToId(value.odooId);
           }
-          return value.toJson();
+          return value;
         });
 
         final res = await env.orpc.callKw(json.decode(rawParams));

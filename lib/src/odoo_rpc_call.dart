@@ -51,13 +51,21 @@ class OdooRpcCall extends Equatable {
       'method': method,
       'args': args,
       'kwargs': kwargs,
-      'callDate': callDate,
+      'callDate': callDate.toIso8601String(),
     };
   }
 
   /// Used to restore a call from persistant call queue.
   static OdooRpcCall fromJson(Map<String, dynamic> jsonMap) {
-    final callJson = json.encode(jsonMap);
+    final callJson = json.encode(jsonMap, toEncodable: (value) {
+      if (value is DateTime) {
+        return value.toIso8601String();
+      }
+      if (value is OdooId) {
+        return value.toJson();
+      }
+      return value;
+    });
     return json.decode(callJson, reviver: (key, value) {
       if (value is Map) {
         if (value.containsKey('userId')) {
@@ -70,7 +78,7 @@ class OdooRpcCall extends Equatable {
             value['method'] as String,
             value['args'] as List<dynamic>,
             value['kwargs'] as Map<dynamic, dynamic>,
-            value['callDate'] as DateTime,
+            DateTime.parse(value['callDate']),
           );
         }
         if (value.containsKey('odooModel') && value.containsKey('odooId')) {
