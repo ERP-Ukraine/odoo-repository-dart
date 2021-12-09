@@ -344,9 +344,10 @@ class OdooRepository<R extends OdooRecord> {
     latestRecords.insert(0, record);
     final vals = record.toVals();
     vals.remove('id');
-    await execute(recordId: record.id, method: 'create', args: [
-      [vals]
-    ], kwargs: {});
+    // vals list or vals
+    final args = env.orpc.sessionId!.serverVersion >= 12 ? [vals] : vals;
+    await execute(
+        recordId: record.id, method: 'create', args: args, kwargs: {});
     _recordStreamAdd(latestRecords);
     return record;
   }
@@ -410,8 +411,8 @@ class OdooRepository<R extends OdooRecord> {
   }
 
   /// Helps to builds rpc call instance.
-  OdooRpcCall buildRpcCall(String method, int recordId, List<dynamic> args,
-      Map<String, dynamic> kwargs) {
+  OdooRpcCall buildRpcCall(
+      String method, int recordId, dynamic args, Map<String, dynamic> kwargs) {
     return OdooRpcCall(
       env.orpc.sessionId!.userId,
       env.orpc.baseURL,
@@ -447,7 +448,9 @@ class OdooRepository<R extends OdooRecord> {
         final params = {
           'model': call.modelName,
           'method': call.method,
-          'args': call.args.isNotEmpty ? call.args : [],
+          'args': (call.args is List && call.args.isNotEmpty)
+              ? call.args
+              : [call.args],
           'kwargs': call.kwargs,
         };
 
@@ -466,7 +469,7 @@ class OdooRepository<R extends OdooRecord> {
 
         if (call.method == 'create') {
           // store mapping between real and fake id
-          newIdMapping[call.recordId] = res[0];
+          newIdMapping[call.recordId] = res is List ? res[0] : res;
         }
 
         logger.d(res.toString());
@@ -519,7 +522,7 @@ class OdooRepository<R extends OdooRecord> {
   Future<dynamic> execute(
       {required int recordId,
       required String method,
-      List<dynamic> args = const [],
+      dynamic args = const [],
       Map<String, dynamic> kwargs = const {}}) async {
     final rpcCall = buildRpcCall(method, recordId, args, kwargs);
     await env.queueRequest(rpcCall);

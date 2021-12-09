@@ -14,7 +14,7 @@ class OdooRpcCall extends Equatable {
   final String modelName;
   final int recordId;
   final String method;
-  final List<dynamic> args;
+  final dynamic args;
   final Map<dynamic, dynamic> kwargs;
   final DateTime callDate;
   // TODO: add call type: rpc, controller, etc
@@ -76,7 +76,7 @@ class OdooRpcCall extends Equatable {
             value['modelName'] as String,
             value['recordId'] as int,
             value['method'] as String,
-            value['args'] as List<dynamic>,
+            value['args'] as dynamic,
             value['kwargs'] as Map<dynamic, dynamic>,
             DateTime.parse(value['callDate']),
           );

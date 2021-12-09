@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.4.2
+
+Add support for vals and vals_list in create
+
 ## 0.4.1
 
 Fix issue with encoding datetime of a RPC call
