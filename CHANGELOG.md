@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.4.3
+
+Truncate generated id to 32 bit integer
+
 ## 0.4.2
 
 Add support for vals and vals_list in create

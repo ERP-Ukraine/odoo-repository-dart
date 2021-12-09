@@ -324,7 +324,8 @@ class OdooRepository<R extends OdooRecord> {
   /// Returns next available id
   int get nextId {
     // FIXME: there might be more than one call per ms
-    return DateTime.now().millisecondsSinceEpoch;
+    // Truncate to 32 bit: database index limitation
+    return DateTime.now().millisecondsSinceEpoch & 0xFFFFFFFF;
   }
 
   /// Create new record in cache and schedule rpc call
