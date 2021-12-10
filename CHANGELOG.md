@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.4.4
+
+Do not overwrite id in create()
+
 ## 0.4.3
 
 Truncate generated id to 32 bit integer

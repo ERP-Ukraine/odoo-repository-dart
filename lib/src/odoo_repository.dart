@@ -332,15 +332,7 @@ class OdooRepository<R extends OdooRecord> {
   /// Must use call queue via execute() method to issue calls
   /// sequentially comparing to other repositories(models)
   Future<R> create(R record) async {
-    final nextFreeId = nextId;
-    // ensure we are creating record with highest id
-    if (record.id != nextFreeId) {
-      var values = record.toJson();
-      values['id'] = nextFreeId;
-      record = createRecordFromJson(values);
-    }
-    final newId = OdooId(modelName, nextFreeId);
-    logger.d('$modelName: create id=$newId');
+    logger.d('$modelName: create id=${record.id}');
     await cachePut(record);
     latestRecords.insert(0, record);
     final vals = record.toVals();
