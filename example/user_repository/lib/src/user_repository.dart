@@ -27,7 +27,7 @@ class UserRepository extends OdooRepository<User> {
   Future<void> authenticateUser(
       {required String login, required String password}) async {
     try {
-      logger.d('Authenticating user `$login`');
+      env.logger.d('Authenticating user `$login`');
       await env.orpc.authenticate(env.dbName, login, password);
       unawaited(fetchRecords());
     } on OdooException {
@@ -42,7 +42,7 @@ class UserRepository extends OdooRepository<User> {
   }
 
   void logOutUser() {
-    logger.d('Logging out user `${latestRecords[0].login}`');
+    env.logger.d('Logging out user `${latestRecords[0].login}`');
     clearCaches();
     env.orpc.destroySession().then((value) => clearRecords());
   }
