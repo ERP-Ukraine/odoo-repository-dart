@@ -13,3 +13,7 @@ dependencies:
   logger: ^1.0.0
   crypto: ^3.0.0
   pedantic: ^1.11.1
+  mutex: ^3.0.0
+
+dev_dependencies:
+  test: ^1.16.5
