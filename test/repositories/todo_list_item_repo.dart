@@ -11,6 +11,12 @@ class TodoListItem extends Equatable implements OdooRecord {
 
   TodoListItem(this.id, this.name, this.done, this.todoListId);
 
+  TodoListItem copyWith(
+      {int? id, String? name, bool? done, OdooId? todoListId}) {
+    return TodoListItem(id ?? this.id, name ?? this.name, done ?? this.done,
+        todoListId ?? this.todoListId);
+  }
+
   @override
   Map<String, dynamic> toVals() {
     return {'name': name, 'done': done, 'list_id': todoListId};
@@ -21,12 +27,19 @@ class TodoListItem extends Equatable implements OdooRecord {
     return {'id': id, 'name': name, 'done': done, 'list_id': todoListId};
   }
 
-  static TodoListItem fromJson(Map<String, Object> json) {
+  static TodoListItem fromJson(Map<String, dynamic> json) {
+    late OdooId listOdooId;
+    var listId = json['list_id'] as int?;
+    if (listId == null) {
+      listOdooId = json['list_id'] as OdooId;
+    } else {
+      listOdooId = OdooId('todo.list', listId);
+    }
     return TodoListItem(
       json['id'] as int,
       json['name'] as String,
       json['done'] as bool,
-      json['list_id'] as OdooId,
+      listOdooId,
     );
   }
 
@@ -43,4 +56,9 @@ class TodoListItemRepository extends OdooRepository<TodoListItem> {
   final modelName = 'todo.list.item';
 
   TodoListItemRepository(OdooEnvironment env) : super(env);
+
+  @override
+  TodoListItem createRecordFromJson(Map<String, dynamic> json) {
+    return TodoListItem.fromJson(json);
+  }
 }

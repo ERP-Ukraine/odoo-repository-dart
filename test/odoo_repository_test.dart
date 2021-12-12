@@ -82,7 +82,14 @@ http_testing.MockClientHandler getFakeRequestHandler({final int code = 200}) {
             itemIndex += 1;
           }
           if (method == 'web_search_read') {
-            result = {'length': 0, 'records': []};
+            result = {'length': 0, 'records': [
+              {
+                'id': 1,
+                'name': 'Milk',
+                'done': true,
+                'list_id': 1
+              }
+            ]};
           }
         }
         final bodyJson = {
@@ -111,22 +118,32 @@ http_testing.MockClientHandler getFakeRequestHandler({final int code = 200}) {
 }
 
 void main() async {
-  final cache = OdooKvMap();
-  await cache.init();
+  late OdooKvMap cache;
+  late NetworkConnectivity netConn;
+  late http_testing.MockClient mockHttpClient;
+  late OdooClient odooClient;
+  late OdooEnvironment env;
+  late TodoListRepository todoListRepo;
+  late TodoListItemRepository todoListItemRepo;
 
-  final mockHttpClient = http_testing.MockClient(getFakeRequestHandler());
+  setUp(() async {
+    cache = OdooKvMap();
+    await cache.init();
 
-  final odooClient = OdooClient('https://test.odoo.com', null, mockHttpClient);
-  // Catch session changes to store most recent one
-  final sessionChangedHandler = storeSesion(cache);
-  odooClient.sessionStream.listen(sessionChangedHandler);
+    mockHttpClient = http_testing.MockClient(getFakeRequestHandler());
 
-  final netConn = NetworkConnectivity();
+    odooClient = OdooClient('https://test.odoo.com', null, mockHttpClient);
+    // Catch session changes to store most recent one
+    final sessionChangedHandler = storeSesion(cache);
+    odooClient.sessionStream.listen(sessionChangedHandler);
 
-  final env = OdooEnvironment(odooClient, 'odoo', cache, netConn);
+    netConn = NetworkConnectivity();
 
-  final todoListRepo = env.add(TodoListRepository(env));
-  final todoListItemRepo = env.add(TodoListItemRepository(env));
+    env = OdooEnvironment(odooClient, 'odoo', cache, netConn);
+
+    todoListRepo = env.add(TodoListRepository(env));
+    todoListItemRepo = env.add(TodoListItemRepository(env));
+  });
 
   test('env.of and env.models returning correct repo', () {
     expect(env.of<TodoListRepository>(), equals(todoListRepo));
@@ -221,7 +238,7 @@ void main() async {
     expect(mapping[list1.id], isNot(equals(mapping.containsKey(list2.id))));
   });
 
-  test('replace fake odoo id with real one', () async {
+  test('replace fake odoo id with real one in offline', () async {
     final list1 = TodoList(todoListRepo.nextId, 'Shopping', kind: 'Private');
     final item1 = TodoListItem(todoListItemRepo.nextId, 'Milk', false,
         OdooId(todoListRepo.modelName, list1.id));
@@ -246,5 +263,40 @@ void main() async {
     expect(mapping.containsKey(list1.id), isTrue);
     var calls = await env.pendingCalls;
     expect(calls.isEmpty, isTrue);
+  });
+
+  test('replace fake odoo id with real one in online', () async {
+    final list1 = TodoList(todoListRepo.nextId, 'Shopping', kind: 'Private');
+    final item1 = TodoListItem(todoListItemRepo.nextId, 'Milk', false,
+        OdooId(todoListRepo.modelName, list1.id));
+
+    await odooClient.authenticate(env.dbName, 'admin', 'admin');
+    await todoListRepo.create(list1);
+    await todoListItemRepo.create(item1);
+
+    await env.callsLock.protectRead(() async => {});
+
+    final mapping = todoListRepo.newIdMapping;
+    expect(mapping.containsKey(list1.id), isTrue);
+    var calls = await env.pendingCalls;
+    expect(calls.isEmpty, isTrue);
+  });
+
+  test('create and update related record in online', () async {
+    final list1 = TodoList(todoListRepo.nextId, 'Shopping', kind: 'Private');
+    final item1 = TodoListItem(todoListItemRepo.nextId, 'Milk', false,
+        OdooId(todoListRepo.modelName, list1.id));
+
+    await odooClient.authenticate(env.dbName, 'admin', 'admin');
+    await todoListRepo.create(list1);
+    await todoListItemRepo.create(item1);
+    await todoListItemRepo.write(item1.copyWith(done: true));
+
+    await env.callsLock.protectRead(() async => {});
+
+    final latestRecords = todoListItemRepo.latestRecords;
+    expect(latestRecords.length, equals(1));
+    expect(latestRecords[0].done, isTrue);
+    expect(latestRecords[0].id, equals(1));
   });
 }
