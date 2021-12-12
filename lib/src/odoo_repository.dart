@@ -91,7 +91,8 @@ class OdooRepository<R extends OdooRecord> {
     if (!isAuthenticated) {
       return <int, int>{};
     }
-    return env.cache.get(newIdMappingKey, defaultValue: <int, int>{});
+    return Map<int, int>.from(
+        env.cache.get(newIdMappingKey, defaultValue: <int, int>{}));
   }
 
   /// Stores mapping to cache

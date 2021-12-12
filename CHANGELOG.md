@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.5.2
+
+Cast data received from cache
+
 ## 0.5.1
 
 Fetch records for all models on login

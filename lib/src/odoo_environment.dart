@@ -91,8 +91,8 @@ class OdooEnvironment {
     if (!isAuthenticated) {
       return <OdooRpcCall>[];
     }
-    return cache.get(pendingCallsKey, defaultValue: <OdooRpcCall>[])
-        as List<OdooRpcCall>;
+    return List<OdooRpcCall>.from(
+        cache.get(pendingCallsKey, defaultValue: <OdooRpcCall>[]));
   }
 
   /// Returns list of calls that has to be done when online
