@@ -79,14 +79,14 @@ class OdooEnvironment {
         .toString();
   }
 
-  // Pending Calls keys for all Odoo instances start with it
+  /// Pending Calls keys for all Odoo instances start with
   final String pendingCallsPrefix = 'OdooRpcPendingCalls';
 
-  // Unique key per odoo instance
+  /// Unique key per odoo instance
   String get pendingCallsKey => '$pendingCallsPrefix:$serverUuid';
 
-  // Unprotected by Mutex.
-  // Must be used only inside protected closures.
+  /// Unprotected by Mutex.
+  /// Must be used only inside protected closures.
   List<OdooRpcCall> _getPendingCalls() {
     if (!isAuthenticated) {
       return <OdooRpcCall>[];
@@ -94,6 +94,7 @@ class OdooEnvironment {
     return cache.get(pendingCallsKey, defaultValue: <OdooRpcCall>[]);
   }
 
+  /// Returns list of calls that has to be done when online
   Future<List<OdooRpcCall>> get pendingCalls async {
     return await callsLock
         .protectRead<List<OdooRpcCall>>(() async => _getPendingCalls());
@@ -141,8 +142,8 @@ class OdooEnvironment {
 
     if (call.method == 'create') {
       // store mapping between real and fake id
-      models[call.modelName]!.newIdMapping[call.recordId] =
-          res is List ? res[0] : res;
+      await models[call.modelName]!.setNewIdMapping(
+          newId: call.recordId, realId: res is List ? res[0] : res);
     }
 
     logger.d(res.toString());
