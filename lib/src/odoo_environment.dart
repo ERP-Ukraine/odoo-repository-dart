@@ -188,9 +188,12 @@ class OdooEnvironment {
   }
 
   /// Called when going online/offline
-  void onNetworkConnChanged(netConnState netState) {
+  void onNetworkConnChanged(netConnState netState) async {
     if (netState == netConnState.online) {
-      _processCallQueue();
+      await _processCallQueue();
+      for (var repo in _registry) {
+        await repo.fetchRecords();
+      }
     }
   }
 
