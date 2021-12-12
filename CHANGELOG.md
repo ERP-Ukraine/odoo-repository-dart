@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.5.1
+
+Fetch records for all models on login
+
 ## 0.5.0
 
 Move call queue to env to make it synchronous
