@@ -68,10 +68,6 @@ class OdooRepository<R extends OdooRecord> {
   /// Must be overridden to set real model name.
   late String modelName;
 
-  /// Used to map ids created in offline to real ids after sync
-  // TODO: store me in cache
-  final newIdMapping = <int, int>{};
-
   /// Instantiates [OdooRepository] with given [OdooDatabase] info.
   OdooRepository(this.env) {
     recordStreamController = StreamController<List<R>>.broadcast(
@@ -83,6 +79,31 @@ class OdooRepository<R extends OdooRecord> {
 
   /// Disables stream of records fetched
   void stopStream() => recordStreamActive = false;
+
+  /// newIdMapping for all Odoo instances starts with
+  final String newIdMappingPrefix = 'OdooNewIdMapping';
+
+  /// Unique key per odoo instance
+  String get newIdMappingKey => '$newIdMappingPrefix:${env.serverUuid}';
+
+  /// Gets mapping from cache
+  Map<int, int> get newIdMapping {
+    if (!isAuthenticated) {
+      return <int, int>{};
+    }
+    return env.cache.get(newIdMappingKey, defaultValue: <int, int>{});
+  }
+
+  /// Stores mapping to cache
+  Future<void> setNewIdMapping(
+      {required int newId, required int realId}) async {
+    if (!isAuthenticated) {
+      return;
+    }
+    var mapping = newIdMapping;
+    mapping[newId] = realId;
+    return await env.cache.put(newIdMappingKey, mapping);
+  }
 
   /// Gets unique part of a key for
   /// caching records of [modelName] of database per user
@@ -244,29 +265,23 @@ class OdooRepository<R extends OdooRecord> {
   Future<void> fetchRecords() async {
     /// reset offset as if we are loading first page.
     /// To fetch more than that use [cacheMoreRecords].
-    if (callsToProcess.isNotEmpty) {
-      env.logger.d('skipping fetchRecords as call queue is not processed yet');
-      return;
-    }
     offset = 0;
     try {
       final res = await searchRead();
-      if (res.isNotEmpty) {
-        var freshRecordsIDs = <int>[];
-        var freshRecords = <R>[];
-        await clearCaches();
-        for (Map<String, dynamic> item in res) {
-          var record = createRecordFromJson(item);
-          freshRecordsIDs.add(record.id);
-          freshRecords.add(record);
-          await cachePut(record);
-        }
-        if (freshRecordsIDs.isNotEmpty) {
-          await env.cache.delete(recordIdsCacheKey);
-          await env.cache.put(recordIdsCacheKey, freshRecordsIDs);
-          latestRecords = freshRecords;
-          _recordStreamAdd(latestRecords);
-        }
+      var freshRecordsIDs = <int>[];
+      var freshRecords = <R>[];
+      await clearCaches();
+      for (Map<String, dynamic> item in res) {
+        var record = createRecordFromJson(item);
+        freshRecordsIDs.add(record.id);
+        freshRecords.add(record);
+        await cachePut(record);
+      }
+      if (freshRecordsIDs.isNotEmpty) {
+        await env.cache.delete(recordIdsCacheKey);
+        await env.cache.put(recordIdsCacheKey, freshRecordsIDs);
+        latestRecords = freshRecords;
+        _recordStreamAdd(latestRecords);
       }
     } on Exception {
       env.logger.d('$modelName: frontend_get_requests: OdooException}');
@@ -377,7 +392,8 @@ class OdooRepository<R extends OdooRecord> {
         recordId: newRecord.id,
         method: 'write',
         args: [OdooId(modelName, newRecord.id), values],
-        kwargs: {});
+        kwargs: {},
+        awaited: true);
     _recordStreamAdd(latestRecords);
   }
 
@@ -411,19 +427,6 @@ class OdooRepository<R extends OdooRecord> {
       args,
       kwargs,
     );
-  }
-
-  List<OdooRpcCall> get callsToProcess {
-    var calls = <OdooRpcCall>[];
-    if (!isAuthenticated) {
-      return calls;
-    }
-    for (String key in env.cache.keys) {
-      if (key.contains(rpcCallKeyPrefix)) {
-        calls.add(env.cache.get(key));
-      }
-    }
-    return calls;
   }
 
   /// Executes [method] on [recordId] of current [modelName].
