@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.5.0
+
+Move call queue to env to make it synchronous
+
 ## 0.4.4
 
 Do not overwrite id in create()
