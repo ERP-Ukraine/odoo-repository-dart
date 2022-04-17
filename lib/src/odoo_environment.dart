@@ -201,6 +201,9 @@ class OdooEnvironment {
   Future<void> loginStateChanged(OdooLoginEvent event) async {
     if (event == OdooLoginEvent.loggedIn) {
       await _processCallQueue();
+      for (var repo in _registry) {
+        await repo.fetchRecords();
+      }
     }
     if (event == OdooLoginEvent.loggedOut) {
       for (var repo in _registry) {

@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.5.3
+
+Fetch all records after login
+
 ## 0.5.2
 
 Cast data received from cache
