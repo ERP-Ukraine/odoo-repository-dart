@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.5.4
+
+Support Server version as String
+
 ## 0.5.3
 
 Fetch all records after login

@@ -345,7 +345,12 @@ class OdooRepository<R extends OdooRecord> {
     final vals = record.toVals();
     vals.remove('id');
     // vals list or vals
-    final args = env.orpc.sessionId!.serverVersion >= 12 ? [vals] : vals;
+    var serverVersionSanitized = env.orpc.sessionId!.serverVersion;
+    serverVersionSanitized = serverVersionSanitized.length == 1
+        ? serverVersionSanitized
+        : serverVersionSanitized.substring(serverVersionSanitized.length - 2);
+    var serverVersion = int.tryParse(serverVersionSanitized) ?? 12;
+    final args = serverVersion >= 12 ? [vals] : vals;
     await execute(
         recordId: record.id,
         method: 'create',
