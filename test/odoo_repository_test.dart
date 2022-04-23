@@ -215,7 +215,9 @@ void main() async {
     var completer = Completer<Null>();
     netConn.onNetConnChanged.listen((netConnState netState) {
       if (netState == netConnState.online) {
-        completer.complete();
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
       }
     });
 
