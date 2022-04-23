@@ -7,14 +7,14 @@ on:
       - "lib/**"
       - "test/**"
       - ".github/workflows/main.yaml"
-  
+
   pull_request:
     paths:
       - "example/**"
       - "lib/**"
       - "test/**"
       - ".github/workflows/main.yaml"
-  
+
   workflow_dispatch:
 
 jobs:
@@ -24,9 +24,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dart-lang/setup-dart@v1
-      
+
       - name: Install dependencies
         run: dart pub get
+
+      - name: Install example dependencies
+        run: cd example; dart pub get
 
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .

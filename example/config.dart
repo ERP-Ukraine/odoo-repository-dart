@@ -1,5 +1,6 @@
-import 'package:crypto/crypto.dart';
 import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 
 const odooServerURL = 'https://my-demo.odoo.com';
 const String odooDbName = 'odoo';

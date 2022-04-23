@@ -106,7 +106,7 @@ class UserRepository extends OdooRepository<User> {
       });
       var avatarUrl = '';
       if (res.length == 1) {
-        final image_field = env.orpc.sessionId!.serverVersion >= 13
+        final image_field = env.orpc.sessionId!.serverVersionInt >= 13
             ? 'image_128'
             : 'image_small';
         var unique = res[0]['__last_update'] as String;

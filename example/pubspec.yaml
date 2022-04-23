@@ -9,4 +9,4 @@ environment:
 dependencies:
   hive: ^2.0.0
   user_repository:
-    path: ./user_repository/.
+    path: ./user_repository/

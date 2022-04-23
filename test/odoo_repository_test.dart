@@ -82,14 +82,12 @@ http_testing.MockClientHandler getFakeRequestHandler({final int code = 200}) {
             itemIndex += 1;
           }
           if (method == 'web_search_read') {
-            result = {'length': 0, 'records': [
-              {
-                'id': 1,
-                'name': 'Milk',
-                'done': true,
-                'list_id': 1
-              }
-            ]};
+            result = {
+              'length': 0,
+              'records': [
+                {'id': 1, 'name': 'Milk', 'done': true, 'list_id': 1}
+              ]
+            };
           }
         }
         final bodyJson = {

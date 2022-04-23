@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:odoo_repository/odoo_repository.dart'
     show netConnState, NetConnState;
 

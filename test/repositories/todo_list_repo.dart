@@ -1,4 +1,3 @@
-
 import 'package:equatable/equatable.dart';
 import 'package:odoo_repository/odoo_repository.dart';
 
