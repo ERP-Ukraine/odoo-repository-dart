@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.5.5
+
+Use serverVersionInt helper
+
 ## 0.5.4
 
 Support Server version as String
