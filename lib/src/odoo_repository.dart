@@ -42,8 +42,12 @@ class OdooRepository<R extends OdooRecord> {
   /// Allows to change default order when fetching data.
   String order = '';
 
+  /// Shows if [cacheMoreRecords] is running right now.
+  /// Prevents loading more records before current request is finished.
+  bool isLoadingMore = false;
+
   /// True if local cache contains less records that remote db.
-  bool get canLoadMore => _offset < remoteRecordsCount;
+  bool get canLoadMore => !isLoadingMore && (_offset < remoteRecordsCount);
 
   // Duration in ms for throttling RPC calls
   int throttleDuration = 1000;
@@ -292,9 +296,12 @@ class OdooRepository<R extends OdooRecord> {
   /// Fetches more records from remote and adds them to list of cached records.
   /// Supposed to be used with list views.
   Future<void> cacheMoreRecords() async {
+    if (isLoadingMore) return;
+    isLoadingMore = true;
     offset += limit;
     try {
       final res = await searchRead();
+      isLoadingMore = false;
       if (res.isEmpty) return;
       var cachedRecords = _cachedRecords;
       for (Map<String, dynamic> item in res) {
@@ -303,10 +310,12 @@ class OdooRepository<R extends OdooRecord> {
         await cachePut(record);
       }
       await env.cache.delete(recordIdsCacheKey);
-      await env.cache.put(recordIdsCacheKey, cachedRecords.map((e) => e.id));
+      await env.cache
+          .put(recordIdsCacheKey, cachedRecords.map((e) => e.id).toList());
       latestRecords = cachedRecords;
       _recordStreamAdd(latestRecords);
     } on Exception {
+      isLoadingMore = false;
       env.logger.d('$modelName: frontend_get_requests: OdooException}');
     }
   }

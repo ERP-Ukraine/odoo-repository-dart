@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.5.6
+
+Call loadMoreRecords sequentially
+
 ## 0.5.5
 
 Use serverVersionInt helper
