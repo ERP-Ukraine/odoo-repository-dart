@@ -52,6 +52,7 @@ class TodoListItem extends Equatable implements OdooRecord {
 }
 
 class TodoListItemRepository extends OdooRepository<TodoListItem> {
+  // TODO: override getter
   @override
   final modelName = 'todo.list.item';
 

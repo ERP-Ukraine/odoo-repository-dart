@@ -212,7 +212,7 @@ void main() async {
     final list1 = TodoList(todoListRepo.nextId, 'Shopping', kind: 'Private');
     final list2 = TodoList(todoListRepo.nextId, 'Project 1', kind: 'Work');
 
-    var completer = Completer<Null>();
+    var completer = Completer<void>();
     netConn.onNetConnChanged.listen((netConnState netState) {
       if (netState == netConnState.online) {
         if (!completer.isCompleted) {
@@ -243,7 +243,7 @@ void main() async {
     final item1 = TodoListItem(todoListItemRepo.nextId, 'Milk', false,
         OdooId(todoListRepo.modelName, list1.id));
 
-    var completer = Completer<Null>();
+    var completer = Completer<void>();
     netConn.onNetConnChanged.listen((netConnState netState) {
       if (netState == netConnState.online) {
         completer.complete();

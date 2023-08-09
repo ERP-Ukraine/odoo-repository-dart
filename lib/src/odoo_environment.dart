@@ -1,10 +1,10 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:crypto/crypto.dart';
 import 'package:logger/logger.dart';
 import 'package:mutex/mutex.dart';
 import 'package:odoo_rpc/odoo_rpc.dart';
-import 'package:pedantic/pedantic.dart';
 
 import 'kv_store.dart';
 import 'network_connection_state.dart';

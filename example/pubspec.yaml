@@ -8,5 +8,9 @@ environment:
 
 dependencies:
   hive: ^2.0.0
+  crypto: ^3.0.0
+  odoo_rpc: ^0.5.2
+  odoo_repository:
+    path: ../
   user_repository:
     path: ./user_repository/

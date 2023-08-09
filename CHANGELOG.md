@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.5.7
+
+Upgrade dependencies
+
 ## 0.5.6
 
 Call loadMoreRecords sequentially
