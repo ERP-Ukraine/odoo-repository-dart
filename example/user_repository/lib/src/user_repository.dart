@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:odoo_repository/odoo_repository.dart';
 import 'package:odoo_rpc/odoo_rpc.dart';
-import 'package:pedantic/pedantic.dart';
 
 import 'user_record.dart';
 
@@ -106,13 +105,13 @@ class UserRepository extends OdooRepository<User> {
       });
       var avatarUrl = '';
       if (res.length == 1) {
-        final image_field = env.orpc.sessionId!.serverVersionInt >= 13
+        final imageField = env.orpc.sessionId!.serverVersionInt >= 13
             ? 'image_128'
             : 'image_small';
         var unique = res[0]['__last_update'] as String;
         unique = unique.replaceAll(RegExp(r'[^0-9]'), '');
-        avatarUrl = env.orpc.baseURL +
-            '/web/image?model=$modelName&field=$image_field&id=$userId&unique=$unique';
+        avatarUrl =
+            '${env.orpc.baseURL}/web/image?model=$modelName&field=$imageField&id=$userId&unique=$unique';
         res[0]['image_small'] = avatarUrl;
       } else {
         res.add(publicUserJson);
