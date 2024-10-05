@@ -9,6 +9,6 @@ environment:
 dependencies:
   equatable: ^2.0.0
   odoo_rpc: ^0.5.1
-  logger: ^1.0.0
+  logger: ^2.0.0
   odoo_repository:
     path: ../../.
