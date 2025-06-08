@@ -16,7 +16,7 @@ void main() async {
   // Try to recover session from storage
   OdooSession? session = cache.get(cacheSessionKey, defaultValue: null);
   // If session is still valid we will be logged in
-  final odooClient = OdooClient(odooServerURL, session);
+  final odooClient = OdooClient(odooServerURL, sessionId: session);
   // Catch session changes to store most recent one
   final sessionChangedHandler = storeSesion(cache);
   odooClient.sessionStream.listen(sessionChangedHandler);

@@ -1,5 +1,9 @@
 # odoo_repository changelog
 
+## 0.6.0
+
+Updated dependencies
+
 ## 0.5.9
 
 Updated dependencies

@@ -130,7 +130,7 @@ void main() async {
 
     mockHttpClient = http_testing.MockClient(getFakeRequestHandler());
 
-    odooClient = OdooClient('https://test.odoo.com', null, mockHttpClient);
+    odooClient = OdooClient('https://test.odoo.com', sessionId: null, httpClient: mockHttpClient);
     // Catch session changes to store most recent one
     final sessionChangedHandler = storeSesion(cache);
     odooClient.sessionStream.listen(sessionChangedHandler);
@@ -158,28 +158,28 @@ void main() async {
 
   test('cache keys are unique', () async {
     final env1Db1 = OdooEnvironment(
-        OdooClient('https://test1.odoo.com', null, mockHttpClient),
+        OdooClient('https://test1.odoo.com', sessionId: null, httpClient: mockHttpClient),
         'db1',
         cache,
         netConn);
     final env2Db1 = OdooEnvironment(
-        OdooClient('https://test2.odoo.com', null, mockHttpClient),
+        OdooClient('https://test2.odoo.com', sessionId: null, httpClient: mockHttpClient),
         'db1',
         cache,
         netConn);
 
     final env1Db2 = OdooEnvironment(
-        OdooClient('https://test1.odoo.com', null, mockHttpClient),
+        OdooClient('https://test1.odoo.com', sessionId: null, httpClient: mockHttpClient),
         'db2',
         cache,
         netConn);
     final env2Db2 = OdooEnvironment(
-        OdooClient('https://test2.odoo.com', null, mockHttpClient),
+        OdooClient('https://test2.odoo.com', sessionId: null, httpClient: mockHttpClient),
         'db2',
         cache,
         netConn);
     final env2Db2Demo = OdooEnvironment(
-        OdooClient('https://test2.odoo.com', null, mockHttpClient),
+        OdooClient('https://test2.odoo.com', sessionId: null, httpClient: mockHttpClient),
         'db2',
         cache,
         netConn);
